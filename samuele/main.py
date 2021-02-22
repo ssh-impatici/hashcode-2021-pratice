@@ -5,12 +5,11 @@ from solver import solver
 if __name__ == '__main__':
 
     tasks = [
-        'a_example',
-        'b_read_on',
-        'c_incunabula',
-        'd_tough_choices',
-        'e_so_many_books',
-        'f_libraries_of_the_world',
+        #'a_example',
+        #'b_little_bit_of_everything',
+        'c_many_ingredients',
+        #'d_many_pizzas',
+        #'e_many_teams'
     ]
 
     for task in tasks:
