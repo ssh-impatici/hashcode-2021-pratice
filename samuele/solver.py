@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MultiLabelBinarizer
-from collections import Counter
 
 # Settings
 path = './data/'
@@ -24,7 +23,7 @@ class Pizza:
     def __init__(self, pizza_id, ingredients):
         self.pizza_id = pizza_id
         self.ingredients = ingredients  # TODO Sortare
-        self.score = 0  # TODO Score
+        self.encoding = []
 
     def __str__(self):
         return str(self.pizza_id) + ' ' + str(len(self.ingredients))
@@ -33,7 +32,7 @@ class Pizza:
 def read(filepath):
     with open(filepath, 'r') as file:
         pizzas = []
-        count_ingredients = []
+        counts = {}
 
         npizza, n2pt, n3pt, n4pt = [int(value) for value in file.readline().rstrip().split(' ')]
 
@@ -41,38 +40,28 @@ def read(filepath):
             ingredients = file.readline().split()[1:]
 
             for j in ingredients:
-                count_ingredients.append(j)
+                count = counts.get(j, 0)
+                counts.update({j: count + 1})
 
             pizzas.append(Pizza(i, ingredients))
 
-    return npizza, n2pt, n3pt, n4pt, pizzas, count_ingredients
+    return npizza, n2pt, n3pt, n4pt, pizzas, counts
 
 
 def analysis(task):
-    npizza, n2pt, n3pt, n4pt, pizzas, count_ingredients = read(path + task + '.in')
+    npizza, n2pt, n3pt, n4pt, pizzas, counts = read(path + task + '.in')
 
-    # Score
-    count_unici = {}
-
-    unici = set(count_ingredients)
-
-    for i in unici:
-        count_unici.update({i: count_ingredients.count(i)})
+    print(task)
+    print("Numero ingredienti unici " + str(len(counts)))
 
     dist_ingredients = {}
 
-    for i in range(1, len(unici) + 1):
+    for i in range(1, len(counts) + 1):
         dist_ingredients[i] = 0
 
     for i in pizzas:
         s = 0
         dist_ingredients[len(i.ingredients)] += 1
-        for j in i.ingredients:
-            i.score += 1 / count_unici[j]  # Score
-
-    # Datasets
-    print(task)
-    print("Numero ingredienti unici " + len(unici).__str__())
 
     plt.figure()
     x = np.arange(len(dist_ingredients))
@@ -100,23 +89,18 @@ def analysis(task):
     print("\n")
 
 
-def normalize(df, pizzas):
-    copy = df.copy()
+def normalize_pizza(pizza, counts, ingredients):
+    if not len(pizza.encoding) > 0:
+        pizza.encoding = [1 / (counts[ingredient] ** 2) if ingredient in pizza.ingredients else 0 for ingredient in
+                          ingredients]
 
-    ingredients = [ingredient for pizza in pizzas for ingredient in pizza.ingredients]
-
-    unqique_ingredients = list(set(ingredients))
-    counts = Counter(ingredients)
-
-    for ingredient in unqique_ingredients:
-        copy[ingredient] = copy[ingredient].apply(lambda x: x/counts[ingredient])
-
-    return copy, counts
+    return pizza
 
 
-def best_pizza(query, pizzas, normalized_encoding):
+def best_pizza(team_encoding, pizzas, counts, ingredients):
     pizzas.sort(
-        key=lambda pizza: np.linalg.norm(query - np.array(normalized_encoding.iloc[pizza.pizza_id].to_list())),
+        key=lambda pizza: np.linalg.norm(
+            team_encoding - np.array(normalize_pizza(pizza, counts, ingredients).encoding)),
         reverse=True)
     return pizzas[0]
 
@@ -124,7 +108,7 @@ def best_pizza(query, pizzas, normalized_encoding):
 def solver(task):
     start = time.time()
 
-    npizza, n2pt, n3pt, n4pt, pizzas, count_ingredients = read(path + task + '.in')
+    npizza, n2pt, n3pt, n4pt, pizzas, counts = read(path + task + '.in')
 
     output = []
 
@@ -134,47 +118,37 @@ def solver(task):
 
     mlb = MultiLabelBinarizer()
 
-    print("Inizio ENCODING")
     encoding = pd.DataFrame(mlb.fit_transform(table), columns=mlb.classes_, index=table.index)
     # print(encoding)
-    print("Fine ENCODING")
 
-    print("Inizio SORT")
-    # Sort pizza
-    pizzas.sort(key=lambda x: len(x.ingredients), reverse=True)  # TODO
-    print("Fine SORT")
-
-    print("Inizio NORMALIZE")
-    normalized_encoding, counts = normalize(encoding, pizzas)
-    # print(normalized_encoding)
-    print("Fine NORMALIZE")
+    pizzas.sort(key=lambda x: len(x.ingredients), reverse=True)  # Sort iniziale
 
     j = 0
+    n = n4pt + n3pt + n2pt
 
-    # for nteams, nmembers in zip([n2pt, n3pt, n4pt], [2, 3, 4]):
-    for nteams, nmembers in zip([n4pt, n3pt, n2pt], [4, 3, 2]):  # TODO
-
+    for nteams, nmembers in zip([n4pt, n3pt, n2pt], [4, 3, 2]):  # Priorità
+        # for nteams, nmembers in zip([n3pt, n4pt, n2pt], [3, 4, 2]):  # Priorità
+        # for nteams, nmembers in zip([n2pt, n3pt, n4pt], [2, 3, 4]):  # Priorità
         for _ in range(nteams):
 
             if len(pizzas) >= nmembers:
                 team = Team(j, [], [])
                 j += 1
+                print(str(round((j / n * 100), 2)) + "%")  # Percentuale teams completati
 
                 pizza = pizzas.pop(0)  # TODO
+
+                pizza = normalize_pizza(pizza, counts, encoding.columns)
 
                 team.pizzas.append(pizza)
                 team.unici.extend(pizza.ingredients)
 
                 for _ in range(nmembers - 1):
-                    # fake_pizza = Pizza(-1, team.unici)
+                    team_encoding = [1 / counts[ingredient] if ingredient in team.unici else 0 for ingredient in
+                                     encoding.columns]
 
-                    riga = pd.DataFrame([[1 / counts[ingredients] if ingredients in team.unici else 0 for ingredients in
-                                          encoding.columns]], columns=encoding.columns)
-                    #print(riga)
-                    query = np.array(riga.iloc[0].to_list())
-                    #print(query)
-
-                    best = best_pizza(query, pizzas[:min(40, len(pizzas))], normalized_encoding)  # Sliding window
+                    best = best_pizza(team_encoding, pizzas[:min(100, len(pizzas))], counts,
+                                      encoding.columns)  # Sliding window
 
                     team.pizzas.append(best)
                     team.unici.extend(best.ingredients)
@@ -195,6 +169,8 @@ def solver(task):
                 file.write('\n')
 
     print(task, ' finished in ' + (time.time() - start).__str__())
+    print(task, ' pizze rimanenti ' + str(len(pizzas)))
+    print(task, ' team compleati ' + str(round((j / n * 100), 2)) + "%")
 
 
 # Debug
