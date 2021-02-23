@@ -105,6 +105,130 @@ def best_pizza(team_encoding, pizzas, counts, ingredients):
     return pizzas[0]
 
 
+def solverbucket(task):
+    start = time.time()
+
+    npizza, n2pt, n3pt, n4pt, pizzas, counts = read(path + task + '.in')
+
+    output = []
+
+    pizzas.sort(key=lambda x: len(x.ingredients), reverse=True)  # Sort iniziale
+
+    p_tot = (n2pt * 2 + n3pt * 3 + n4pt * 4)
+    perc = min(1, p_tot / len(pizzas))
+    print(perc)
+
+    # Eliminazione iniziale
+    # pizzas = pizzas[:int(np.ceil(len(pizzas)*perc))]
+    # print(pizzas)
+
+    ingredients = [pizza.ingredients for pizza in pizzas]
+
+    table = pd.Series(ingredients)
+
+    mlb = MultiLabelBinarizer()
+
+    encoding = pd.DataFrame(mlb.fit_transform(table), columns=mlb.classes_, index=table.index)
+    # print(encoding)
+
+    columns = []
+
+    for k, v in sorted(counts.items(), key=lambda item: item[1], reverse=True):
+        columns.append(k)
+
+    encoding = encoding[columns]
+    # print(encoding)
+
+    # Moltiplicazione per il numero di ingredienti
+    '''
+    for index, row in encoding.iterrows():
+        encoding.loc[index,:] *= len(pizzas[index].ingredients)
+    '''
+    # print(encoding)
+
+    encoding = encoding.sort_values(columns, ascending=False)
+    # print(encoding)
+
+    # Buckets
+    encoding_index_list = encoding.index.to_list()
+    # print(encoding_index_list)
+
+    # Buckets 4
+    b1 = encoding_index_list[:int(np.ceil(0.25 * len(encoding_index_list)))]
+    b2 = encoding_index_list[
+         int(np.ceil(0.25 * len(encoding_index_list))):int(np.ceil(0.50 * len(encoding_index_list)))]
+    b3 = encoding_index_list[
+         int(np.ceil(0.50 * len(encoding_index_list))):int(np.ceil(0.75 * len(encoding_index_list)))]
+    b4 = encoding_index_list[int(np.ceil(0.75 * len(encoding_index_list))):]
+
+    j = 0
+    for nteams, nmembers in zip([n4pt], [4]):
+        for _ in range(nteams):
+            if len(b1) >= 1 and len(b2) >= 1 and len(b3) >= 1 and len(b4) >= 1:
+                team = Team(j, [], [])
+                j += 1
+
+                team.pizzas.append(pizzas[b1.pop(0)])
+                team.pizzas.append(pizzas[b2.pop(0)])
+                team.pizzas.append(pizzas[b3.pop(0)])
+                team.pizzas.append(pizzas[b4.pop(0)])
+
+                output.append([pizza.pizza_id for pizza in team.pizzas])
+
+    # Buckets 3
+    encoding_index_list = b1 + b2 + b3 + b4
+
+    b1 = encoding_index_list[:int(np.ceil(0.34 * len(encoding_index_list)))]
+    b2 = encoding_index_list[
+         int(np.ceil(0.34 * len(encoding_index_list))):int(np.ceil(0.66 * len(encoding_index_list)))]
+    b3 = encoding_index_list[int(np.ceil(0.66 * len(encoding_index_list))):]
+
+    j = 0
+    for nteams, nmembers in zip([n3pt], [3]):
+        for _ in range(nteams):
+            if len(b1) >= 1 and len(b2) >= 1 and len(b3) >= 1:
+                team = Team(j, [], [])
+                j += 1
+
+                team.pizzas.append(pizzas[b1.pop(0)])
+                team.pizzas.append(pizzas[b2.pop(0)])
+                team.pizzas.append(pizzas[b3.pop(0)])
+
+                output.append([pizza.pizza_id for pizza in team.pizzas])
+
+    # Buckets 2
+    encoding_index_list = b1 + b2 + b3
+
+    b1 = encoding_index_list[:int(np.ceil(0.5 * len(encoding_index_list)))]
+    b2 = encoding_index_list[int(np.ceil(0.5 * len(encoding_index_list))):]
+
+    j = 0
+    for nteams, nmembers in zip([n2pt], [2]):
+        for _ in range(nteams):
+            if len(b1) >= 1 and len(b2) >= 1:
+                team = Team(j, [], [])
+                j += 1
+
+                team.pizzas.append(pizzas[b1.pop(0)])
+                team.pizzas.append(pizzas[b2.pop(0)])
+
+                output.append([pizza.pizza_id for pizza in team.pizzas])
+
+    # print('B2 ' + str(b2))
+
+    if write:
+        with open('./output/' + task + '.txt', 'w') as file:
+
+            file.write(str(len(output)) + '\n')
+
+            for item in output:
+                file.write(str(len(item)) + ' ')
+                file.write(' '.join([str(value) for value in item]))
+                file.write('\n')
+
+    print(task + " finished")
+
+
 def solver(task):
     start = time.time()
 
@@ -113,8 +237,10 @@ def solver(task):
     output = []
 
     ingredients = [pizza.ingredients for pizza in pizzas]
+    print(ingredients)
 
     table = pd.Series(ingredients)
+    print(table)
 
     mlb = MultiLabelBinarizer()
 
