@@ -1,6 +1,10 @@
+import pandas as pd
+from sklearn.preprocessing import MultiLabelBinarizer
+import numpy as np
+
 # Settings
 path = './data/'
-write = True
+write = False
 
 
 class Team:
@@ -47,8 +51,8 @@ def solver(task):
     # sort pizza
     pizzas.sort(key=lambda x: len(x.ingredients), reverse=True)
 
-    for nteams, nmembers in zip([n4pt, n3pt, n2pt], [4, 3, 2]):
     # for nteams, nmembers in zip([n2pt, n3pt, n4pt], [2, 3, 4]):
+    for nteams, nmembers in zip([n4pt, n3pt, n2pt], [4, 3, 2]):
 
         for _ in range(nteams):
 
@@ -94,42 +98,30 @@ def solver(task):
 if __name__ == '__main__':
 
     task = 'a_example'
-    task = 'b_little_bit_of_everything'
+    # task = 'b_little_bit_of_everything'
 
     npizza, n2pt, n3pt, n4pt, pizzas = read(path + task + '.in')
 
     output = []
-    j = 0
 
-    # sort pizza
-    pizzas.sort(key=lambda x: len(x.ingredients), reverse=True)
+    ingredients = [pizza.ingredients for pizza in pizzas]
 
-    # for nteams, nmembers in zip([n4pt, n3pt, n2pt], [4, 3, 2]):
-    for nteams, nmembers in zip([n2pt, n3pt, n4pt], [2, 3, 4]):
+    table = pd.Series(ingredients)
 
-        for _ in range(nteams):
+    mlb = MultiLabelBinarizer()
 
-            if len(pizzas) >= nmembers:
+    encoding = pd.DataFrame(mlb.fit_transform(table), columns=mlb.classes_, index=table.index)
 
-                team = Team(j, [])
-                j += 1
 
-                team.pizzas.append(pizzas.pop(0))
+    def best_pizza(query, pizzas):
 
-                for _ in range(nmembers - 1):
-                    ingredients = set([ingredient for pizza in team.pizzas for ingredient in pizza.ingredients])
+        query = np.array(encoding.iloc[query.pizza_id].to_list())
+        pizzas.sort(key=lambda pizza: np.linalg.norm(query - np.array(encoding.iloc[pizza.pizza_id].to_list())),
+                    reverse=True)
+        return pizzas[0]
 
-                    # pizza selection
-                    candidates = pizzas[:min(200, len(pizzas))]
-                    candidates.sort(key=lambda x: len(ingredients - set(x.ingredients)), reverse=True)
-
-                    pizza = candidates[0]
-                    pizzas.remove(pizza)
-
-                    # delivery pizza
-                    team.pizzas.append(pizza)
-
-                output.append([pizza.pizza_id for pizza in team.pizzas])
+    pizza = pizzas.pop(1)
+    best = best_pizza(pizza, pizzas)
 
     if write:
 
