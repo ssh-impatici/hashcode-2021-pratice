@@ -113,12 +113,38 @@ if __name__ == '__main__':
     encoding = pd.DataFrame(mlb.fit_transform(table), columns=mlb.classes_, index=table.index)
 
 
+    def normalize(df, pizzas):
+
+        copy = df.copy()
+
+        ingredients = [ingredient for pizza in pizzas for ingredient in pizza.ingredients]
+
+        unqique_ingredients = list(set(ingredients))
+
+        counts = {}
+
+        for ingredient in unqique_ingredients:
+
+            count = ingredients.count(ingredient)
+
+            counts.update({
+                ingredient: count
+            })
+
+            copy[ingredient] = copy[ingredient] / count
+
+        return copy, counts
+
+
     def best_pizza(query, pizzas):
 
         query = np.array(encoding.iloc[query.pizza_id].to_list())
         pizzas.sort(key=lambda pizza: np.linalg.norm(query - np.array(encoding.iloc[pizza.pizza_id].to_list())),
                     reverse=True)
         return pizzas[0]
+
+
+    normalized_encoding = normalize(encoding, pizzas)
 
     pizza = pizzas.pop(1)
     best = best_pizza(pizza, pizzas)
