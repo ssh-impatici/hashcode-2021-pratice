@@ -1,6 +1,6 @@
 from multiprocessing import Process
 
-from solver import solver
+from solver import solver, analysis
 
 if __name__ == '__main__':
 
@@ -12,6 +12,15 @@ if __name__ == '__main__':
         #'e_many_teams'
     ]
 
+    # Analysis
+    anal = False
+
+    if anal:
+        for task in tasks:
+            process = Process(target=analysis, args=([task]))
+            process.start()
+
+    # Solver
     for task in tasks:
         process = Process(target=solver, args=([task]))
         process.start()
