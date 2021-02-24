@@ -1,6 +1,6 @@
 from multiprocessing import Process
 
-from solver import solverbucket, analysis
+from solver import solverbucket, solver, analysis
 
 if __name__ == '__main__':
 
@@ -14,6 +14,7 @@ if __name__ == '__main__':
 
     anal = False
     sol = True
+    solbuc = False
 
     # Analysis
     if anal:
@@ -23,6 +24,12 @@ if __name__ == '__main__':
 
     # Solver
     if sol:
+        for task in tasks:
+            process = Process(target=solver, args=([task]))
+            process.start()
+
+    # Solver
+    if solbuc:
         for task in tasks:
             process = Process(target=solverbucket, args=([task]))
             process.start()
